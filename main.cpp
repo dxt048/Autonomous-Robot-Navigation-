@@ -1,12 +1,15 @@
 #include "mbed.h"
+#include "nRF24L01P.h"
 
 BusOut display1(PC_4, PB_13, PB_14, PB_15, PB_1, PB_2, PB_12, PA_11);
 BusOut display2(PC_3, PC_2, PB_7, PA_14, PC_12, PC_10, PD_2, PC_11);
 
+nRF24L01P my_nrf24l01p(D11, D12, D13, D8, D7);    // mosi, miso, sck, csn, ce
+
 BusOut motorControl(D2, D3, D4, D5);
 
-PwmOut ENA(D8);
-PwmOut ENB(D13);
+PwmOut ENA(D6);
+PwmOut ENB(D9);
 
 //Timers and Threads
 Thread displayingCoords;
@@ -62,6 +65,7 @@ int displayHexValue(int number){
             display = 0x79;
             break;
     }
+    display = 0x6f;
     return display;
 }
 
@@ -132,6 +136,26 @@ void robotMotorMovements(int motorMovement){
 // main() runs in its own thread in the OS
 int main()
 {
+    //Setting up reciever
+    #define TRANSFER_SIZE   24
+    char txData[TRANSFER_SIZE], rxData[TRANSFER_SIZE];
+    int txDataCnt = 0;
+    int rxDataCnt = 0;
+    my_nrf24l01p.powerUp();
+    my_nrf24l01p.setRfOutputPower(-6);
+    my_nrf24l01p.setTxAddress(DEFAULT_NRF24L01P_ADDRESS,DEFAULT_NRF24L01P_ADDRESS_WIDTH);
+    my_nrf24l01p.setRxAddress(DEFAULT_NRF24L01P_ADDRESS,DEFAULT_NRF24L01P_ADDRESS_WIDTH);
+    my_nrf24l01p.setAirDataRate(2000);
+    // Display the (default) setup of the nRF24L01+ chip
+    printf( "nRF24L01+ Frequency    : %d MHz\r\n",  my_nrf24l01p.getRfFrequency() );
+    printf( "nRF24L01+ Output power : %d dBm\r\n",  my_nrf24l01p.getRfOutputPower() );
+    printf( "nRF24L01+ Data Rate    : %d kbps\r\n", my_nrf24l01p.getAirDataRate() );
+    printf( "nRF24L01+ TX Address   : 0x%010llX\r\n", my_nrf24l01p.getTxAddress() );
+    printf( "nRF24L01+ RX Address   : 0x%010llX\r\n", my_nrf24l01p.getRxAddress() );
+    my_nrf24l01p.setTransferSize( TRANSFER_SIZE );
+    my_nrf24l01p.setReceiveMode();
+    my_nrf24l01p.enable();
+
     //PWM for motors
     ENA.period(0.05);
     ENA=0.5;
@@ -140,8 +164,8 @@ int main()
     ENB=0.5;
 
     //Movement time at 50% duty cycle for 8 inches + 90 degree-ish turn
-    double movementTime = 0.8;
-    double turnTime = 0.56;
+    double movementTime = 1.1;
+    double turnTime = 0.25;
 
     //Initialize coords
     x = 1;
