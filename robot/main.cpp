@@ -32,8 +32,10 @@ int direction;
 double movementTime, turnTime; //Seconds needed to complete certain actions
 bool inMotion; //Tracks if robot is currently in the middle of moving
 bool isTurning; //Tracks if robot is currently rotating
+bool isReversing;
 bool enabledMovements; //Whether the robot is allowed to continue moving or not
 bool enableTransmission; //Whether to broadcast navigation result time or not
+
 
 //Return hex value to display on seven segment
 int displayHexValue(int number) {
@@ -64,11 +66,20 @@ void displaySegments() {
 
 //Update x,y coordinates depending on direction in motion
 void updateCoordinates() {
-    switch(direction) {
-        case 1: currentY = currentY + 1; break;
-        case 2: currentX = currentX + 1; break;
-        case 3: currentY-=1; break;
-        case 4: currentX-=1; break;
+    if(isReversing){    //Check if robot is moving forwards or backwards
+        switch(direction) {
+            case 1: currentY-=1; break;
+            case 2: currentX-=1; break;
+            case 3: currentY+=1; break;
+            case 4: currentX+=1; break;
+        }
+    } else {
+        switch(direction) {
+            case 1: currentY+=1; break;
+            case 2: currentX+=1; break;
+            case 3: currentY-=1; break;
+            case 4: currentX-=1; break;
+        }
     }
 }
 
@@ -77,6 +88,7 @@ void robotStopMovement() {
     motorControl = 0x00;
     inMotion = false;
     isTurning = false;
+    isReversing = false;
 }
 
 //Main robot movement function
@@ -106,6 +118,7 @@ void robotMotorMovements(int motorMovement) {
             break;
         case 5: //Reverse
             motorControl = 0x05;
+            isReversing = true;]
             break;
     }
 }
@@ -293,6 +306,7 @@ int main()
     //Initialize global variables
     inMotion = false;
     isTurning = false;
+    isReversing = false;
     enableTransmission = false;
     enabledMovements = false;
 
