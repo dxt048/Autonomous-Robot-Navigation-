@@ -32,7 +32,8 @@ int direction;
 double movementTime, turnTime; //Seconds needed to complete certain actions
 bool inMotion; //Tracks if robot is currently in the middle of moving
 bool isTurning; //Tracks if robot is currently rotating
-bool isReversing;
+bool isReversing; //Tracks if robot is reversing
+bool isDancing; //Tracks if the robot is dancing
 bool enabledMovements; //Whether the robot is allowed to continue moving or not
 bool enableTransmission; //Whether to broadcast navigation result time or not
 
@@ -89,6 +90,7 @@ void robotStopMovement() {
     inMotion = false;
     isTurning = false;
     isReversing = false;
+    isDancing = false;
 }
 
 //Main robot movement function
@@ -118,7 +120,7 @@ void robotMotorMovements(int motorMovement) {
             break;
         case 5: //Reverse
             motorControl = 0x05;
-            isReversing = true;]
+            isReversing = true;
             break;
     }
 }
@@ -127,6 +129,11 @@ void robotMotorMovements(int motorMovement) {
 void robotNavigation(){
     while(true) {
         //Verify if coordinates are meant to update
+        if(isDancing && timerController.read() > turnTime*8) {
+            robotStopMovement();
+            timerController.stop();
+            timerController.reset();
+        }
         if(inMotion && displayUpdateTimer.read() > movementTime/2) {
             updateCoordinates();
             displayUpdateTimer.stop();
@@ -150,6 +157,9 @@ void robotNavigation(){
                 navigationTimer.stop();
                 enabledMovements = false;
                 enableTransmission = true;
+                isDancing = true;
+                timerController.start();
+                robotMotorMovements(2);
                 //Dance
                 startX = -1;
                 startY = -1;
@@ -294,8 +304,8 @@ int main()
     ENB=0.5;
 
     //Movement time at 50% duty cycle for 8 inches + 90 degree-ish turn
-    movementTime = 1.1;
-    turnTime = 0.53;
+    movementTime = 0.9;
+    turnTime = 0.35;
 
     //Initialize coords
     startX = -1, startY = -1;
