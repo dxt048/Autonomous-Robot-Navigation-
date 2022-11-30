@@ -1,30 +1,11 @@
 //main.cpp file+++++++++++++++++++++++++++++++++++++++++
 #include "mbed.h"
 #include "nRF24L01P.h"
+#include <cstdio>
  
 nRF24L01P transmitter(D11, D12, D13,D2,D3);   // mosi, miso, sck, csn, ce, irq
-Thread checker; //Independent thread for recieving data from robot
 bool awaitingNavigationTime; //boolean tracking when the mbed is open to recieving navigation time
 bool sentStarting, sentEnding; //boolean tracking if starting and ending points have been sent
-
-void displayNavigationTime(){
-
-    #define TRANSFER_SIZE 24
-    char txData[TRANSFER_SIZE], rxData[TRANSFER_SIZE];
-    int rxDataCnt = 0;
-
-    while(true){
-        if(transmitter.readable()){
-            if(awaitingNavigationTime){
-                awaitingNavigationTime = !awaitingNavigationTime;
-                rxDataCnt = transmitter.read(NRF24L01P_PIPE_P0, rxData, sizeof(rxData));
-                printf("Navigation time data from robot: %s", rxData);
-                snprintf(txData, sizeof txData, "%s", "CT");
-                transmitter.write(NRF24L01P_PIPE_P0, txData, sizeof txData);
-            }
-        }
-    }
-}
 
 int main() {
  
@@ -67,11 +48,8 @@ int main() {
         //Command code
         if(strcmp(command, "ST") == 0){    //Start command
             if (sentStarting && sentEnding) {
-                //Broadcast 10 times just in case robot fails to recieve transmission a couple of times
-                for(int i = 0; i < 10; i++){
-                    snprintf(txData, sizeof txData, "%s00000000", command);
-                    transmitter.write(NRF24L01P_PIPE_P0, txData, sizeof txData);
-                }
+                snprintf(txData, 3, "%s00000000", command);
+                transmitter.write(NRF24L01P_PIPE_P0, txData, sizeof txData);
                 awaitingNavigationTime = !awaitingNavigationTime;
                 printf("The robot should have started moving. If not, ensure starting and end points commands have been used.\n");
             } else {
@@ -80,11 +58,8 @@ int main() {
 
 
         } else if(strcmp(command, "PA") == 0){ //Pause command
-            //Broadcast 10 times just in case robot fails to recieve transmission a couple of times
-            for(int i = 0; i < 10; i++){
-                snprintf(txData, sizeof txData, "%s00000000", command);
+                snprintf(txData, 3, "%s00000000", command);
                 transmitter.write(NRF24L01P_PIPE_P0, txData, sizeof txData);
-            }
             printf("The robot should have stopped moving if it wasn't already.\n");
 
 
@@ -113,23 +88,9 @@ int main() {
                                     printf("Invalid direction.\n");
                                 } else {
                                     printf("Sending points (%d, %d) facing direction %d to robot.\n", startx, starty, direction);
-                                    //Broadcast 10 times just in case robot fails to recieve transmission a couple of times
-                                    char data[24] = "";
-                                    char integerString[1];
-
-                                    strcat(data, command);
-                                    //Convert startx to string and add to char array
-                                    snprintf(integerString, sizeof integerString, "%d", startx);
-                                    strcat(data, integerString);
-                                    //Convert starty to string and add to char array
-                                    snprintf(integerString, sizeof integerString, "%d", starty);
-                                    strcat(data, integerString);
-                                    //Convert direction to string and add to char array
-                                    snprintf(integerString, sizeof integerString, "%d", direction);
-                                    strcat(data, integerString);
-                                    for(int i = 0; i < 10; i++){
-                                        transmitter.write(NRF24L01P_PIPE_P0, data, sizeof data);
-                                    }
+                                    char data[24];
+                                    snprintf(data, 6, "%s%d%d%dK", command, startx, starty, direction);
+                                    transmitter.write(NRF24L01P_PIPE_P0, data, sizeof data);
                                     sentStarting = true;
                                 }
                             } else {
@@ -163,20 +124,9 @@ int main() {
                             printf("Incorrect input. Expected an integer between values 0 to 7.\n");
                         } else {
                             printf("Sending end points (%d, %d) to robot.\n", endx, endy);
-                            //Broadcast 10 times just in case robot fails to recieve transmission a couple of times
-                            char data[24] = "";
-                            char integerString[1];
-
-                            strcat(data, command);
-                            //Convert endx to string and add to char array
-                            snprintf(integerString, sizeof integerString, "%d", endx);
-                            strcat(data, integerString);
-                            //Convert endy to string and add to char array
-                            snprintf(integerString, sizeof integerString, "%d", endy);
-                            strcat(data, integerString);
-                            for(int i = 0; i < 10; i++){
-                                transmitter.write(NRF24L01P_PIPE_P0, data, sizeof data);
-                            }
+                            char data[24];
+                            snprintf(data, 5, "%s%d%dk", command, endx, endy);
+                            transmitter.write(NRF24L01P_PIPE_P0, data, sizeof data);
                             sentEnding = true;
                         }
                     } else {
@@ -189,5 +139,13 @@ int main() {
         } else {
             printf("%s is not a valid command.\n", command);
         }
+
+        if(transmitter.readable()){
+            if(awaitingNavigationTime){
+                awaitingNavigationTime = !awaitingNavigationTime;
+                rxDataCnt = transmitter.read(NRF24L01P_PIPE_P0, rxData, sizeof(rxData));
+                printf("Navigation time data from robot: %s seconds\n", rxData);
+            }
+        }
     }
-}    
+}
