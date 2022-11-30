@@ -4,7 +4,7 @@
 BusOut display1(PC_4, PB_13, PB_14, PB_15, PB_1, PB_2, PB_12, PA_11);
 BusOut display2(PC_3, PC_2, PB_7, PA_14, PC_12, PC_10, PD_2, PC_11);
 
-nRF24L01P my_nrf24l01p(D11, D12, D13, D8, D7);    // mosi, miso, sck, csn, ce
+//nRF24L01P my_nrf24l01p(D11, D12, D13, D8, D7);    // mosi, miso, sck, csn, ce
 
 BusOut motorControl(D2, D3, D4, D5);
 
@@ -26,46 +26,25 @@ int direction;
 bool inMotion; //Tracks if robot is currently in the middle of moving
 bool isTurning; //Tracks if robot is currently rotating
 int motionSteps; //Tracks what step into its movement the robot is in (This is just for hardcoded movements)
+bool establishedConnection;
 
 //Return hex value to display on seven segment
 int displayHexValue(int number){
     int display = 0x00;
     switch (number){
-        case 0: 
-            display = 0x3F;
-            break;
-        case 1:
-            display = 0x06;
-            break;
-        case 2: 
-            display = 0x5B;
-            break;
-        case 3: 
-            display = 0x4F;
-            break;
-        case 4: 
-            display = 0x66;
-            break;
-        case 5: 
-            display = 0x6D;
-            break;
-        case 6: 
-            display = 0x7D;
-            break;
-        case 7: 
-            display = 0x07;
-            break;
-        case 8: 
-            display = 0x7F;
-            break;
-        case 9: 
-            display = 0x6F;
-            break;
-        default:
-            display = 0x79;
-            break;
+        case 0: display = 0x3F; break;
+        case 1: display = 0x06; break;
+        case 2: display = 0x5B; break;
+        case 3: display = 0x4F; break;
+        case 4: display = 0x66; break;
+        case 5: display = 0x6D; break;
+        case 6: display = 0x7D; break;
+        case 7: display = 0x07; break;
+        case 8: display = 0x7F; break;
+        case 9: display = 0x6F; break;
+        default: display = 0x79; break;
     }
-    display = 0x6f;
+    display = 0x3f;
     return display;
 }
 
@@ -80,18 +59,10 @@ void displaySegments(){
 //Update x,y coordinates depending on direction in motion
 void updateCoordinates(){
     switch(direction){
-        case 1:
-            y = y + 1;
-            break;
-        case 2:
-            x = x + 1;
-            break;
-        case 3:
-            y-=1;
-            break;
-        case 4:
-            x-=1;
-            break;
+        case 1: y = y + 1; break;
+        case 2: x = x + 1; break;
+        case 3: y-=1; break;
+        case 4: x-=1; break;
     }
 }
 
@@ -137,7 +108,7 @@ void robotMotorMovements(int motorMovement){
 int main()
 {
     //Setting up reciever
-    #define TRANSFER_SIZE   24
+    /*#define TRANSFER_SIZE   24
     char txData[TRANSFER_SIZE], rxData[TRANSFER_SIZE];
     int txDataCnt = 0;
     int rxDataCnt = 0;
@@ -154,7 +125,7 @@ int main()
     printf( "nRF24L01+ RX Address   : 0x%010llX\r\n", my_nrf24l01p.getRxAddress() );
     my_nrf24l01p.setTransferSize( TRANSFER_SIZE );
     my_nrf24l01p.setReceiveMode();
-    my_nrf24l01p.enable();
+    my_nrf24l01p.enable();*/
 
     //PWM for motors
     ENA.period(0.05);
@@ -165,7 +136,7 @@ int main()
 
     //Movement time at 50% duty cycle for 8 inches + 90 degree-ish turn
     double movementTime = 1.1;
-    double turnTime = 0.25;
+    double turnTime = 0.53;
 
     //Initialize coords
     x = 1;
@@ -176,6 +147,7 @@ int main()
     inMotion = false;
     isTurning = false;
     motionSteps = 1;
+    establishedConnection = false;
 
     //Start displaying segments continuously
     displayingCoords.start(displaySegments);
@@ -186,6 +158,17 @@ int main()
     timerController.start();
     //While loop
     while (true) {
+        /*if(!establishedConnection){
+            if ( my_nrf24l01p.readable() ) {
+            // ...read the data into the receive buffer
+            rxDataCnt = my_nrf24l01p.read( NRF24L01P_PIPE_P0, rxData, sizeof( rxData ) );
+            //myled2 = !myled2;
+            txData[0] = 'C';
+            my_nrf24l01p.write( NRF24L01P_PIPE_P0, txData, txDataCnt);
+            establishedConnection = true;
+            }
+        }*/
+
         //Check if enough time has pass to update coordinates
         if(inMotion && displayUpdateTimer.read() > movementTime/2){
             updateCoordinates();
@@ -214,7 +197,7 @@ int main()
                 case 2: //Second step, turn from north to east <direction goes from 1 -> 2>
                     timerController.reset();
                     robotMotorMovements(3);
-                    inMotion = true;
+                    isTurning = true;
                     motionSteps+=1;
                     break;
                 case 3: //Third step, move forward from (1,2) to (2,2)
@@ -227,7 +210,7 @@ int main()
                 case 4: //Fourth step, turn from east to south <direction goes from 2 -> 3>
                     timerController.reset();
                     robotMotorMovements(3);
-                    inMotion = true;
+                    isTurning = true;
                     motionSteps+=1;
                     break;
                 case 5: //Fifth step, move forward from (2,2) to (2,1)
@@ -237,7 +220,7 @@ int main()
                     inMotion = true;
                     motionSteps+=1;
                     break;
-                case 26: //End of hardcoded path, exit loop
+                case 6: //End of hardcoded path, exit loop
                     endOfProgram = true;
                     break;
             }
